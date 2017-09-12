@@ -6,14 +6,14 @@
 #
 #       ANY CHANGES MADE HERE WILL BE LOST!
 #
-#   MakeMaker ARGV: ()
+#   MakeMaker ARGV: (q[INSTALL_BASE=/projects/fs1/common/software/StefansPerl/1.0.0])
 #
 
 #   MakeMaker Parameters:
 
 #     BUILD_REQUIRES => {  }
 #     CONFIGURE_REQUIRES => {  }
-#     EXE_FILES => [q[bin/create_project.pl]]
+#     EXE_FILES => [q[bin/create_project.pl], q[bin/register_script.pl], q[bin/reset_files.pl]]
 #     NAME => q[ongoing_work]
 #     PREREQ_PM => { Shell=>q[0], Stefans_Libs_Essentials=>q[0] }
 #     TEST_REQUIRES => {  }
@@ -72,7 +72,7 @@ INST_MAN3DIR = blib/man3
 MAN1EXT = 1
 MAN3EXT = 3
 INSTALLDIRS = site
-INSTALL_BASE = /home/stefanl/perl5
+INSTALL_BASE = /projects/fs1/common/software/StefansPerl/1.0.0
 DESTDIR = 
 PREFIX = $(INSTALL_BASE)
 INSTALLPRIVLIB = $(INSTALL_BASE)/lib/perl5
@@ -159,7 +159,9 @@ XS_FILES =
 C_FILES  = 
 O_FILES  = 
 H_FILES  = 
-MAN1PODS = bin/create_project.pl
+MAN1PODS = bin/create_project.pl \
+	bin/register_script.pl \
+	bin/reset_files.pl
 MAN3PODS = 
 
 # Where is the Config information that we are using/depend on
@@ -410,9 +412,13 @@ POD2MAN = $(POD2MAN_EXE)
 
 
 manifypods : pure_all  \
-	bin/create_project.pl
+	bin/create_project.pl \
+	bin/register_script.pl \
+	bin/reset_files.pl
 	$(NOECHO) $(POD2MAN) --section=1 --perm_rw=$(PERM_RW) -u \
-	  bin/create_project.pl $(INST_MAN1DIR)/create_project.pl.$(MAN1EXT) 
+	  bin/create_project.pl $(INST_MAN1DIR)/create_project.pl.$(MAN1EXT) \
+	  bin/register_script.pl $(INST_MAN1DIR)/register_script.pl.$(MAN1EXT) \
+	  bin/reset_files.pl $(INST_MAN1DIR)/reset_files.pl.$(MAN1EXT) 
 
 
 
@@ -422,20 +428,33 @@ manifypods : pure_all  \
 
 # --- MakeMaker installbin section:
 
-EXE_FILES = bin/create_project.pl
+EXE_FILES = bin/create_project.pl bin/register_script.pl bin/reset_files.pl
 
-pure_all :: $(INST_SCRIPT)/create_project.pl
+pure_all :: $(INST_SCRIPT)/create_project.pl $(INST_SCRIPT)/register_script.pl $(INST_SCRIPT)/reset_files.pl
 	$(NOECHO) $(NOOP)
 
 realclean ::
 	$(RM_F) \
-	  $(INST_SCRIPT)/create_project.pl 
+	  $(INST_SCRIPT)/create_project.pl $(INST_SCRIPT)/register_script.pl \
+	  $(INST_SCRIPT)/reset_files.pl 
 
 $(INST_SCRIPT)/create_project.pl : bin/create_project.pl $(FIRST_MAKEFILE) $(INST_SCRIPT)$(DFSEP).exists $(INST_BIN)$(DFSEP).exists
 	$(NOECHO) $(RM_F) $(INST_SCRIPT)/create_project.pl
 	$(CP) bin/create_project.pl $(INST_SCRIPT)/create_project.pl
 	$(FIXIN) $(INST_SCRIPT)/create_project.pl
 	-$(NOECHO) $(CHMOD) $(PERM_RWX) $(INST_SCRIPT)/create_project.pl
+
+$(INST_SCRIPT)/register_script.pl : bin/register_script.pl $(FIRST_MAKEFILE) $(INST_SCRIPT)$(DFSEP).exists $(INST_BIN)$(DFSEP).exists
+	$(NOECHO) $(RM_F) $(INST_SCRIPT)/register_script.pl
+	$(CP) bin/register_script.pl $(INST_SCRIPT)/register_script.pl
+	$(FIXIN) $(INST_SCRIPT)/register_script.pl
+	-$(NOECHO) $(CHMOD) $(PERM_RWX) $(INST_SCRIPT)/register_script.pl
+
+$(INST_SCRIPT)/reset_files.pl : bin/reset_files.pl $(FIRST_MAKEFILE) $(INST_SCRIPT)$(DFSEP).exists $(INST_BIN)$(DFSEP).exists
+	$(NOECHO) $(RM_F) $(INST_SCRIPT)/reset_files.pl
+	$(CP) bin/reset_files.pl $(INST_SCRIPT)/reset_files.pl
+	$(FIXIN) $(INST_SCRIPT)/reset_files.pl
+	-$(NOECHO) $(CHMOD) $(PERM_RWX) $(INST_SCRIPT)/reset_files.pl
 
 
 
@@ -486,7 +505,7 @@ realclean_subdirs :
 # Delete temporary files (via clean) and also delete dist files
 realclean purge ::  clean realclean_subdirs
 	- $(RM_F) \
-	  $(FIRST_MAKEFILE) $(MAKEFILE_OLD) 
+	  $(MAKEFILE_OLD) $(FIRST_MAKEFILE) 
 	- $(RM_RF) \
 	  $(DISTVNAME) 
 
@@ -640,7 +659,7 @@ distdir : create_distdir distmeta
 
 # --- MakeMaker dist_test section:
 disttest : distdir
-	cd $(DISTVNAME) && $(ABSPERLRUN) Makefile.PL 
+	cd $(DISTVNAME) && $(ABSPERLRUN) Makefile.PL "INSTALL_BASE=/projects/fs1/common/software/StefansPerl/1.0.0"
 	cd $(DISTVNAME) && $(MAKE) $(PASTHRU)
 	cd $(DISTVNAME) && $(MAKE) test $(PASTHRU)
 
@@ -805,7 +824,7 @@ $(FIRST_MAKEFILE) : Makefile.PL $(CONFIGDEP)
 	-$(NOECHO) $(RM_F) $(MAKEFILE_OLD)
 	-$(NOECHO) $(MV)   $(FIRST_MAKEFILE) $(MAKEFILE_OLD)
 	- $(MAKE) $(USEMAKEFILE) $(MAKEFILE_OLD) clean $(DEV_NULL)
-	$(PERLRUN) Makefile.PL 
+	$(PERLRUN) Makefile.PL "INSTALL_BASE=/projects/fs1/common/software/StefansPerl/1.0.0"
 	$(NOECHO) $(ECHO) "==> Your Makefile has been rebuilt. <=="
 	$(NOECHO) $(ECHO) "==> Please rerun the $(MAKE) command.  <=="
 	$(FALSE)
@@ -826,7 +845,8 @@ $(MAKE_APERL_FILE) : $(FIRST_MAKEFILE) pm_to_blib
 	$(NOECHO) $(PERLRUNINST) \
 		Makefile.PL DIR="" \
 		MAKEFILE=$(MAKE_APERL_FILE) LINKTYPE=static \
-		MAKEAPERL=1 NORECURS=1 CCCDLFLAGS=
+		MAKEAPERL=1 NORECURS=1 CCCDLFLAGS= \
+		INSTALL_BASE=/projects/fs1/common/software/StefansPerl/1.0.0
 
 
 # --- MakeMaker test section:
