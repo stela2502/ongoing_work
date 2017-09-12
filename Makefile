@@ -13,7 +13,7 @@
 
 #     BUILD_REQUIRES => {  }
 #     CONFIGURE_REQUIRES => {  }
-#     EXE_FILES => [q[bin/create_project.pl]]
+#     EXE_FILES => [q[bin/create_project.pl], q[bin/register_script.pl]]
 #     NAME => q[ongoing_work]
 #     PREREQ_PM => { Shell=>q[0], Stefans_Libs_Essentials=>q[0] }
 #     TEST_REQUIRES => {  }
@@ -159,7 +159,8 @@ XS_FILES =
 C_FILES  = 
 O_FILES  = 
 H_FILES  = 
-MAN1PODS = bin/create_project.pl
+MAN1PODS = bin/create_project.pl \
+	bin/register_script.pl
 MAN3PODS = 
 
 # Where is the Config information that we are using/depend on
@@ -410,9 +411,11 @@ POD2MAN = $(POD2MAN_EXE)
 
 
 manifypods : pure_all  \
-	bin/create_project.pl
+	bin/create_project.pl \
+	bin/register_script.pl
 	$(NOECHO) $(POD2MAN) --section=1 --perm_rw=$(PERM_RW) -u \
-	  bin/create_project.pl $(INST_MAN1DIR)/create_project.pl.$(MAN1EXT) 
+	  bin/create_project.pl $(INST_MAN1DIR)/create_project.pl.$(MAN1EXT) \
+	  bin/register_script.pl $(INST_MAN1DIR)/register_script.pl.$(MAN1EXT) 
 
 
 
@@ -422,20 +425,26 @@ manifypods : pure_all  \
 
 # --- MakeMaker installbin section:
 
-EXE_FILES = bin/create_project.pl
+EXE_FILES = bin/create_project.pl bin/register_script.pl
 
-pure_all :: $(INST_SCRIPT)/create_project.pl
+pure_all :: $(INST_SCRIPT)/create_project.pl $(INST_SCRIPT)/register_script.pl
 	$(NOECHO) $(NOOP)
 
 realclean ::
 	$(RM_F) \
-	  $(INST_SCRIPT)/create_project.pl 
+	  $(INST_SCRIPT)/create_project.pl $(INST_SCRIPT)/register_script.pl 
 
 $(INST_SCRIPT)/create_project.pl : bin/create_project.pl $(FIRST_MAKEFILE) $(INST_SCRIPT)$(DFSEP).exists $(INST_BIN)$(DFSEP).exists
 	$(NOECHO) $(RM_F) $(INST_SCRIPT)/create_project.pl
 	$(CP) bin/create_project.pl $(INST_SCRIPT)/create_project.pl
 	$(FIXIN) $(INST_SCRIPT)/create_project.pl
 	-$(NOECHO) $(CHMOD) $(PERM_RWX) $(INST_SCRIPT)/create_project.pl
+
+$(INST_SCRIPT)/register_script.pl : bin/register_script.pl $(FIRST_MAKEFILE) $(INST_SCRIPT)$(DFSEP).exists $(INST_BIN)$(DFSEP).exists
+	$(NOECHO) $(RM_F) $(INST_SCRIPT)/register_script.pl
+	$(CP) bin/register_script.pl $(INST_SCRIPT)/register_script.pl
+	$(FIXIN) $(INST_SCRIPT)/register_script.pl
+	-$(NOECHO) $(CHMOD) $(PERM_RWX) $(INST_SCRIPT)/register_script.pl
 
 
 
@@ -486,7 +495,7 @@ realclean_subdirs :
 # Delete temporary files (via clean) and also delete dist files
 realclean purge ::  clean realclean_subdirs
 	- $(RM_F) \
-	  $(FIRST_MAKEFILE) $(MAKEFILE_OLD) 
+	  $(MAKEFILE_OLD) $(FIRST_MAKEFILE) 
 	- $(RM_RF) \
 	  $(DISTVNAME) 
 

@@ -159,6 +159,8 @@ unless ( -d "$path/.git" ) {
 	$tmp = "git push -u origin master";
 	warn $tmp . "\n";
 	system($tmp ) unless ($debug);
+}
+unless ( -d "$name.wiki" ) {
 	$tmp = "git clone git\@$git_server:$git_user/$name.wiki.git";
 	warn $tmp . "\n";
 	
@@ -177,7 +179,8 @@ unless ( -d "$path/.git" ) {
 	  . "[Aim/Hypothesis](aim)\n\n"
 	  . "# Scripts\n\n"
 	  . "Add one link for every analysis script you use:\n\n"
-	  . "[$name.git](scripts/$name)\n\n";
+#	  . "[$name.git](scripts/$name)\n\n"
+	  ;
 	close(WIKI);
 
 	open( WIKI, ">$name.wiki/aim.md" )
@@ -187,11 +190,13 @@ unless ( -d "$path/.git" ) {
 	close(WIKI);
 
 	mkdir("$name.wiki/scripts") unless ( -d "$name.wiki/scripts" );
-	open( WIKI, ">$name.wiki/scripts/$name.md" )
-	  or die "I could not create the wiki home file\n$!\n";
+#	open( WIKI, ">$name.wiki/scripts/$name.md" )
+#	  or die "I could not create the wiki home file\n$!\n";
 	## fill in script description start
-	print WIKI "#The main analysis script for project $name\n\n";
-	close(WIKI);
+#	print WIKI "#The main analysis script for project $name\n\n";
+#	close(WIKI);
+
+	system( "register_script.pl -name '$path/scripts/$name.R'" );
 
 	chdir("$name.wiki");
 	system('git add .');

@@ -33,7 +33,8 @@ my $cmd =
 . " -name " . $name 
 #. " -git_server " . $git_server 
 #. " -git_user " . $git_user 
-. "$debug";
+#. "$debug"
+;
 my $start = time;
 print ( $cmd."\n");
 system( $cmd );
