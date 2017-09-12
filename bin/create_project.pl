@@ -4,23 +4,23 @@
 
   Copyright (C) 2017-08-14 Stefan Lang
 
-  This program is free software; you can redistribute it 
-  and/or modify it under the terms of the GNU General Public License 
-  as published by the Free Software Foundation; 
+  This program is free software; you can redistribute it
+  and/or modify it under the terms of the GNU General Public License
+  as published by the Free Software Foundation;
   either version 3 of the License, or (at your option) any later version.
 
-  This program is distributed in the hope that it will be useful, 
-  but WITHOUT ANY WARRANTY; without even the implied warranty of 
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. 
+  This program is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
   See the GNU General Public License for more details.
 
-  You should have received a copy of the GNU General Public License 
+  You should have received a copy of the GNU General Public License
   along with this program; if not, see <http://www.gnu.org/licenses/>.
 
 =head1 CREATED BY
-   
-   binCreate.pl from  commit 
-   
+
+   binCreate.pl from  commit
+
 
 =head1  SYNOPSIS
 
@@ -32,7 +32,7 @@
 
        -help           :print this help
        -debug          :verbose output
-   
+
 =head1 DESCRIPTION
 
   Create and initialize an analyis project.
@@ -139,8 +139,6 @@ close(Rscript);
 unless ( -f "$path/.gitignore" ) {
 	open( OUT, ">$path/.gitignore" )
 	  or die "I could not create the .gitignore file\n$!\n";
-	print OUT
-	  join( "\n", "*.sam", '*.bam', '*.gz', '*.xls', '*.RData', '*.zip' );
 	print OUT "##exclude wiki files from main project\n$name.wiki\n$name.wiki/*\n";
 	close(OUT);
 }
@@ -150,6 +148,11 @@ unless ( -d "$path/.git" ) {
 	chdir($path);
 	system("git add .");
 	system("git commit -m 'Project initiation'");
+
+	open ( GLOBAL , ">>.git/info/exclude") or die $!;
+	print GLOBAL "\n".
+		  join( "\n", "\\#*", "*.txt", "*.stat", "*.sam", '*.bam', '*.gz', '*.xls', '*.RData', '*.zip', '.bedGraph', '*.err', '*.out' );
+  close ( GLOBAL);
 
 	warn
 "I hope you have created the $git_server repository '$name' before I try the following steps:";
@@ -163,7 +166,7 @@ unless ( -d "$path/.git" ) {
 unless ( -d "$name.wiki" ) {
 	$tmp = "git clone git\@$git_server:$git_user/$name.wiki.git";
 	warn $tmp . "\n";
-	
+
 	system($tmp ) unless ($debug);
 	if ( $debug) {
 		warn "The gitlab wiki integration does not work in debug mode\n";
@@ -205,7 +208,9 @@ unless ( -d "$name.wiki" ) {
 
 }
 
+
+
+
 warn
 "Please do not use the git to store any data (raw or analyzed) or any results (figures, tables, ...)\n"
   . "This information should be either backed up else where or re-creatable using the stored scripts.";
-
