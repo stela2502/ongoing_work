@@ -1,0 +1,12 @@
+	File EBF1.bed looks like a loop 2D BED file
+	File IKZF1.bed looks like a loop 2D BED file
+	Treating files as loop 2D BED files
+
+	Merging resolution set to 15000 (default for loop files)
+
+	33260 total features after merging
+
+Features	EBF1.bed	IKZF1.bed	Name
+12703		X	IKZF1.bed
+2745	X		EBF1.bed
+17812	X	X	EBF1.bed|IKZF1.bed
