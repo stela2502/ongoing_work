@@ -20,7 +20,6 @@ use warnings;
 
 use POSIX;
 use File::Basename;
-use  LoopBed::DPlist;
 
 sub printCMD {
 	print STDERR "\n\tmerge2Dbed.pl [options] <2D BED file1> <2D BED file2> [2D BED file3]...\n";
