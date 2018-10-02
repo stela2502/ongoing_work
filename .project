@@ -6,6 +6,11 @@
 	</projects>
 	<buildSpec>
 		<buildCommand>
+			<name>org.epic.perleditor.perlbuilder</name>
+			<arguments>
+			</arguments>
+		</buildCommand>
+		<buildCommand>
 			<name>de.walware.statet.r.builders.RSupport</name>
 			<arguments>
 			</arguments>
@@ -14,5 +19,6 @@
 	<natures>
 		<nature>de.walware.statet.base.StatetNature</nature>
 		<nature>de.walware.statet.r.RNature</nature>
+		<nature>org.epic.perleditor.perlnature</nature>
 	</natures>
 </projectDescription>

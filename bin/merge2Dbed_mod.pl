@@ -20,6 +20,7 @@ use warnings;
 
 use POSIX;
 use File::Basename;
+use  LoopBed::DPlist;
 
 sub printCMD {
 	print STDERR "\n\tmerge2Dbed.pl [options] <2D BED file1> <2D BED file2> [2D BED file3]...\n";
@@ -118,10 +119,25 @@ my $index = 0;
 my %toCombine =();
 $extraHeader = '';
 
-my $bed = {};
+my @perFile;
 for (my $i=0;$i<@intFiles;$i++) {
-	read2Dbed($intFiles[$i],$i,$numFiles);
+	warn "reading file $intFiles[$i]\n";
+	push ( @perFile, read2Dbed($intFiles[$i],$i,$numFiles) );
 }
+my $chr = {};
+foreach my $f ( @perFile ) {
+	map { $chr->{$_} = 1 } keys %$f;
+}
+
+my $bed = {};
+foreach my $c ( sort keys %$chr ) {		
+	#warn "processing chr $c\n";
+	$bed->{$c} = LoopBed::DPlist->new();
+	$bed->{$c}->{'data'} = [ map{ @{$_->{$c}->{'data'}} } @perFile ];
+	#warn "merging #1 chr $c\n";
+	$bed->{$c}->internal_merge($minRes);
+}
+
 
 #print "The \%bed = ".root->print_perl_var_def( $bed ).";\n";
 
@@ -130,7 +146,7 @@ my %counts = ();
 my $c = 0;
 my %sets = ();
 
-foreach my $chr ( keys %$bed ) {
+foreach my $chr ( sort keys %$bed ) {
 	foreach my $dp ( @{$bed->{$chr}->{'data'}} ) {
 		my $memStr = $dp ->getMemStr();
 		$counts{$memStr}++;
@@ -185,10 +201,6 @@ foreach(sort keys %counts) {
 }
 exit;
 
-sub sameLoop  {
-	my ($int1,$int2,$minRes) = @_;
-	
-}
 
 
 sub check2Dbed {
@@ -213,10 +225,9 @@ sub check2Dbed {
 	return 0;
 }
 
-
 sub read2Dbed {
 	my ($file,$index,$numFiles) = @_;
-	my %bed = ();
+	my $bed = {};
 	$extraHeader = '';
 	my $c = 0;
 	open IN, $file or die "Could not open file: $file\n";
@@ -237,215 +248,18 @@ sub read2Dbed {
 			}
 			next;
 		}
-		my $p1 = Peak ->new( @line[0..2] );
-		my $p2 = Peak ->new( @line[3..5] );
+		my $p1 = LoopBed::Peak ->new( @line[0..2] );
+		my $p2 = LoopBed::Peak ->new( @line[3..5] );
 		my @membership = map{ 0 } 0..($numFiles-1);
 		$membership[$index] = 1;
-		my $dp = DoublePeak->new( $p1, $p2,\@membership );
-		$add = 1;
-		$bed->{$dp->{'p1'}->{'c'} } ||= DPlist->new();
-		$last = 0;
-		FindEntry: for ( my $i = @{$bed->{$dp->{'p1'}->{'c'} }->{'data'} } -1; $i > -1; $i -- ){
-			$storedDP = @{$bed->{$dp->{'p1'}->{'c'} }->{'data'}}[$i];
-			#print "stored\t".$storedDP->pchr(). "\nnew\t". $dp->pchr()."\n";
-			if ( $storedDP->overlaps( $dp , $minRes) ){
-				#print "overlapps new $dp->{'p1'}->{'s'}..$dp->{'p1'}->{'e'}\n";
-				$add = 0;
-				$storedDP->add( $dp );
-				last FindEntry;
-			}if ( $storedDP->{'p1'}->{'e'} < $dp->{'p1'}->{'s'}) {
-				last FindEntry;
-			}
-		}
-		if ( $add ){
-			#print "Adding  new $dp->{'p1'}->{'s'}..$dp->{'p1'}->{'e'}\n";
-			$bed->{$dp->{'p1'}->{'c'} }->add($dp);
-		}
-		#warn "$file:$dp->{'p1'}->{'c'}  next entry ".scalar(  @{$bed->{$dp->{'p1'}->{'c'} }})."\n" if ( $c % 1000 == 0 );
+		my $dp = LoopBed::DoublePeak->new( $p1, $p2,\@membership );
+		$bed->{$dp->{'p1'}->{'c'} } ||= LoopBed::DPlist->new();
+		$bed->{$dp->{'p1'}->{'c'} } -> add_check_overlap ( $dp, $minRes );
+				
 	}
 	close IN;
 
-	return \%bed;
+	return $bed;
 }
-
-
-package DPlist;
-
-use strict;
-use warnings;
-
-sub new {
-
-	my ( $class) = @_;
-
-	my ($self);
-
-	$self ={
-		'data' => [],
-    };
-	
-
-	bless $self, $class if ( $class eq "DPlist" );
-
-	return $self;
-
-}
-
-sub add {
-	my ( $self, $dp ) = @_;
-	if (scalar(@{$self->{'data'}}) == 0 ){
-		#print "Addin into empty array - OK?\n";
-		push( @{$self->{'data'}}, $dp );
-	}elsif ( $dp->{'p1'}->{'s'} > @{$self->{'data'}}[scalar(@{$self->{'data'}})-1]->{'p1'}->{'e'} ) {
-	#	print "Adding at the end of the old array\n";
-		push( @{$self->{'data'}}, $dp );
-	}else {
-		my $add = 0;
-		for ( my $i =  @{$self->{'data'}}-2; $i > -1; $i -- ) {
-		#	print "add check: @{$self->{'data'}}[$i]->{'p1'}->{'s'} > $dp->{'p1'}->{'e'}\n";
-			if (  @{$self->{'data'}}[$i]->{'p1'}->{'e'} < $dp->{'p1'}->{'s'}  ){
-				splice( @{$self->{'data'}}, $i+1, 0, $dp ); ## add it before this entry
-		#		print "Splice add after/instedad of $i+1\n";
-				$add = 1;
-				last; 
-			}
-		}
-		$self->{'data'} = [ sort { $a->{'p1'} -> {'s'} <=> $b->{'p1'} -> {'s'} } @{$self->{'data'}}, $dp ];
-		#warn "I could not find where to add this thing!" if ( $add == 0);
-		#$self->{'data'} = [ sort { $a->{'p1'} -> {'s'} <=> $b->{'p1'} -> {'s'} } @{$self->{'data'}}, $dp ];
-	}
-	#print "@{$self->{'data'}}[0]->{'p1'}->{'c'}:". join(", ", map{ $_->{'p1'}->{'s'} } @{$self->{'data'}} )."\n";
-	return $self;
-}
-
-1;
-
-package Peak;
-
-use strict;
-use warnings;
-use POSIX;
-
-sub new {
-
-	my ( $class, $c, $s, $e ) = @_;
-
-	my ($self);
-
-    if ( $s < $e ) {
-		$self = {
-			c => $c,
-			s => $s, 
-			e => $e
-		};
-    }else {
-    	$self = {
-			c => $c,
-			s => $e, 
-			e => $s
-		};
-    }
-	
-	$self->{'m'} = floor( ($self->{'s'} + $self->{'e'} ) / 2 );
-
-	bless $self, $class if ( $class eq "Peak" );
-
-	return $self;
-
-}
-
-sub overlaps{
-	my ( $self, $other, $maxDist) = @_;
-	
-	if ( $self->{'c'} eq $other->{'c'} ) {
-		return 1 if ( $self->{'s'} <= $other->{'e'} and $self->{'e'} >= $other->{'s'} );
-		return 1 if ( abs($self->{'m'} - $other->{'m'} ) <= $maxDist );
-	}
-	return 0;
-}
-sub pchr{
-	my $self = shift;
-	return $self->{'c'}.":". $self->{'s'}."..". $self->{'e'} ;
-}
-sub print{
-	my $self = shift;
-	return join("\t", $self->{'c'}, $self->{'s'}, $self->{'e'} );
-}
-
-1;
-
-package DoublePeak;
-
-use strict;
-use warnings;
-use List::Util qw[min max];
-
-sub new {
-
-	my ( $class, $p1, $p2, $membership ) = @_;
-
-	my ($self);
-
-	#always give these two a useful order
-	if ( $p1->{'c'} eq $p2->{'c'} ) {
-		( $p1, $p2 ) = sort { $a->{'s'} <=> $b->{'s'} } ( $p1, $p2 );
-	}else {
-		( $p1, $p2 ) = sort { $a->{'c'} cmp $b->{'c'} } ( $p1, $p2 );
-	}
-
-	$self = {
-		'p1' => $p1,
-		'p2' => $p2,
-		'membership' => $membership,
-		'active' => 1,
-	};
-	
-	bless $self, $class if ( $class eq "DoublePeak" );
-
-	return $self;
-
-}
-
-sub add {
-	my ( $self, $other ) = @_;
-	#print "old me:". $self->pchr()."\n";
-	$self->{'p1'}->{'s'} = min( $self->{'p1'}->{'s'}, $other->{'p1'}->{'s'});
-	$self->{'p1'}->{'e'} = max( $self->{'p1'}->{'e'}, $other->{'p1'}->{'e'});
-	
-	$self->{'p2'}->{'s'} = min( $self->{'p2'}->{'s'}, $other->{'p1'}->{'s'});
-	$self->{'p2'}->{'e'} = max( $self->{'p2'}->{'e'}, $other->{'p1'}->{'e'});
-	
-	for (my $i = 0; $i <@{$self->{'membership'}}; $i++ ){
-		@{$self->{'membership'}}[$i] += @{$other->{'membership'}}[$i]
-	}
-	$other->{'active'} = 0;
-	#print "new me:".  $self->pchr()."\n";
-	return $self;
-}
-
-sub overlaps{
-	my ( $self, $other, $maxDist ) = @_;
-	my $ok = 0;
-	foreach ( 'p1', 'p2' ) {
-		$ok += $self->{$_}->overlaps( $other->{$_}, $maxDist );
-	}
-	return $ok == 2
-}
-
-sub pchr {
-	my $self = shift;
-	return $self->{'p1'}->pchr()." to ".  $self->{'p2'}->pchr();
-}
-
-sub print {
-	my $self = shift;
-	return join("\t", $self->{'p1'}->print() , $self->{'p2'}->print(), join("\t", @{$self->{'membership'}} ) );
-}
-
-sub getMemStr {
-	my $self = shift;
-	return join("", map{ if ($_ > 0 ) {1} else {0} } @{$self->{'membership'}}) ;
-}
-
 
 1;
