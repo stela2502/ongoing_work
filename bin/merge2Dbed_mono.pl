@@ -139,6 +139,11 @@ foreach my $c ( sort keys %$chr ) {
 }
 
 
+open (OUT, ">debug.bed" ) or die $!;
+foreach my $c ( sort keys %$chr ) {		
+		print OUT join( "\n", map{ $_->print() } @{$bed->{$c}->{'data'}} )
+}
+close ( OUT );
 #print "The \%bed = ".root->print_perl_var_def( $bed ).";\n";
 
 
@@ -246,7 +251,9 @@ sub read2Dbed {
 					$extraHeader .= "\tinfo";
 				}
 			}
-			next;
+			unless ( $line[0] =~ m/^[Cc]hr/ ) {
+				next;
+			}
 		}
 		my $p1 = LoopBed::Peak ->new( @line[0..2] );
 		my $p2 = LoopBed::Peak ->new( @line[3..5] );
@@ -254,8 +261,10 @@ sub read2Dbed {
 		$membership[$index] = 1;
 		my $dp = LoopBed::DoublePeak->new( $p1, $p2,\@membership );
 		$bed->{$dp->{'p1'}->{'c'} } ||= LoopBed::DPlist->new();
-		$bed->{$dp->{'p1'}->{'c'} } -> add_check_overlap ( $dp, $minRes );
-				
+		$bed->{$dp->{'p1'}->{'c'} } -> add ( $dp, $minRes );	
+	}
+	foreach ( sort keys %$bed ) {
+		$bed->{$_} -> internal_merge()
 	}
 	close IN;
 
@@ -576,7 +585,8 @@ sub internal_merge{
 			if ( @{$self->{'data'}}[$i] -> overlaps ( @{$self->{'data'}}[$a]) ) {
 				 @{$self->{'data'}}[$i] -> add ( @{$self->{'data'}}[$a]) ;
 				 @{$self->{'data'}}[$a]->{'active'} = 0;
-			}elsif ( @{$self->{'data'}}[$i]-> comes_before( @{$self->{'data'}}[$a] ) ) {
+			}elsif ( @{$self->{'data'}}[$i]->{'p1'}->{'e'} + $minRes < @{$self->{'data'}}[$a]->{'p1'}->{'e'} - $minRes )  {
+				## out of range
 				next LOOP;
 			}
 		}
@@ -592,7 +602,7 @@ sub internal_merge{
 		}
 	}
 	$self->{'data'} = \@new;
-	if ( $merged > 0  and $iter +1 < 5 ) {
+	if ( $merged > 0  and $iter +1 < 10 ) {
 		#warn "merged $merged reads ($iter)\n";
 		return $self->internal_merge( $minRes, $iter +1);
 	}
@@ -601,28 +611,7 @@ sub internal_merge{
 
 sub add {
 	my ( $self, $dp ) = @_;
-	if (scalar(@{$self->{'data'}}) == 0 ){
-		#print "Addin into empty array - OK?\n";
-		push( @{$self->{'data'}}, $dp );
-	}elsif ( $dp->{'p1'}->{'s'} > @{$self->{'data'}}[scalar(@{$self->{'data'}})-1]->{'p1'}->{'e'} ) {
-	#	print "Adding at the end of the old array\n";
-		push( @{$self->{'data'}}, $dp );
-	}else {
-		my $add = 0;
-		for ( my $i =  @{$self->{'data'}}-2; $i > -1; $i -- ) {
-		#	print "add check: @{$self->{'data'}}[$i]->{'p1'}->{'s'} > $dp->{'p1'}->{'e'}\n";
-			if (  @{$self->{'data'}}[$i]->{'p1'}->{'e'} < $dp->{'p1'}->{'s'}  ){
-				splice( @{$self->{'data'}}, $i+1, 0, $dp ); ## add it before this entry
-		#		print "Splice add after/instedad of $i+1\n";
-				$add = 1;
-				last; 
-			}
-		}
-		$self->{'data'} = [ sort { $a->{'p1'} -> {'s'} <=> $b->{'p1'} -> {'s'} } @{$self->{'data'}}, $dp ];
-		#warn "I could not find where to add this thing!" if ( $add == 0);
-		#$self->{'data'} = [ sort { $a->{'p1'} -> {'s'} <=> $b->{'p1'} -> {'s'} } @{$self->{'data'}}, $dp ];
-	}
-	#print "@{$self->{'data'}}[0]->{'p1'}->{'c'}:". join(", ", map{ $_->{'p1'}->{'s'} } @{$self->{'data'}} )."\n";
+	push( @{$self->{'data'}}, $dp );
 	return $self;
 }
 

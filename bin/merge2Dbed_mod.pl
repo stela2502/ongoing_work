@@ -139,6 +139,12 @@ foreach my $c ( sort keys %$chr ) {
 }
 
 
+open (OUT, ">debug.bed" ) or die $!;
+foreach my $c ( sort keys %$chr ) {		
+		print OUT join( "\n", map{ $_->print() } @{$bed->{$c}->{'data'}} )
+}
+close ( OUT );
+
 #print "The \%bed = ".root->print_perl_var_def( $bed ).";\n";
 
 
@@ -246,7 +252,9 @@ sub read2Dbed {
 					$extraHeader .= "\tinfo";
 				}
 			}
-			next;
+			unless ( $line[0] =~ m/^[Cc]hr/ ) {
+				next;
+			}
 		}
 		my $p1 = LoopBed::Peak ->new( @line[0..2] );
 		my $p2 = LoopBed::Peak ->new( @line[3..5] );
@@ -254,8 +262,10 @@ sub read2Dbed {
 		$membership[$index] = 1;
 		my $dp = LoopBed::DoublePeak->new( $p1, $p2,\@membership );
 		$bed->{$dp->{'p1'}->{'c'} } ||= LoopBed::DPlist->new();
-		$bed->{$dp->{'p1'}->{'c'} } -> add_check_overlap ( $dp, $minRes );
-				
+		$bed->{$dp->{'p1'}->{'c'} } -> add ( $dp, $minRes );	
+	}
+	foreach ( sort keys %$bed ) {
+		$bed->{$_} -> internal_merge()
 	}
 	close IN;
 
