@@ -1,6 +1,6 @@
-#!/usr/bin/env perl
+#! /usr/bin/env perl
 use warnings;
-
+use strict;
 
 # Copyright 2009 - 2018 Christopher Benner <cbenner@ucsd.edu>
 #
@@ -33,6 +33,8 @@ sub printCMD {
 	print STDERR "\n";
 	exit;
 }
+
+my ( $tadFlag, $extraHeader);
 
 if (@ARGV < 2) {
 	printCMD();
@@ -262,7 +264,7 @@ sub read2Dbed {
 		$membership[$index] = 1;
 		my $dp = LoopBed::DoublePeak->new( $p1, $p2,\@membership );
 		$bed->{$dp->{'p1'}->{'c'} } ||= LoopBed::DPlist->new();
-		$bed->{$dp->{'p1'}->{'c'} } -> add ( $dp, $minRes );	
+		$bed->{$dp->{'p1'}->{'c'} } ->  add ( $dp, $minRes );	
 	}
 	foreach ( sort keys %$bed ) {
 		$bed->{$_} -> internal_merge()
@@ -272,4 +274,3 @@ sub read2Dbed {
 	return $bed;
 }
 
-1;

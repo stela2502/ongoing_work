@@ -270,7 +270,7 @@ sub read2Dbed {
 	return $bed;
 }
 
-1;package LoopBed::DoublePeak;
+package LoopBed::DoublePeak;
 
 #use FindBin;
 #use lib "$FindBin::Bin/../lib/";
