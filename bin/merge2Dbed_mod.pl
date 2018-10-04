@@ -142,8 +142,9 @@ foreach my $c ( sort keys %$chr ) {
 
 
 open (OUT, ">debug.bed" ) or die $!;
+my $tmp;
 foreach my $c ( sort keys %$chr ) {		
-		print OUT join( "\n", map{ $_->print() } @{$bed->{$c}->{'data'}} )
+	print OUT join( "\n", map{ $_->print() } @{$bed->{$c}->{'data'}} )."\n";
 }
 close ( OUT );
 

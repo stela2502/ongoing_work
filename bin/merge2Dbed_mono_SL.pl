@@ -1,6 +1,6 @@
-#!/usr/bin/env perl
+#! /usr/bin/env perl
 use warnings;
-
+use strict;
 
 # Copyright 2009 - 2018 Christopher Benner <cbenner@ucsd.edu>
 #
@@ -32,6 +32,8 @@ sub printCMD {
 	print STDERR "\n";
 	exit;
 }
+
+my ( $tadFlag, $extraHeader);
 
 if (@ARGV < 2) {
 	printCMD();
@@ -139,10 +141,12 @@ foreach my $c ( sort keys %$chr ) {
 
 
 open (OUT, ">debug.bed" ) or die $!;
+my $tmp;
 foreach my $c ( sort keys %$chr ) {		
-		print OUT join( "\n", map{ $_->print() } @{$bed->{$c}->{'data'}} )
+	print OUT join( "\n", map{ $_->print() } @{$bed->{$c}->{'data'}} )."\n";
 }
 close ( OUT );
+
 #print "The \%bed = ".root->print_perl_var_def( $bed ).";\n";
 
 
@@ -260,7 +264,7 @@ sub read2Dbed {
 		$membership[$index] = 1;
 		my $dp = LoopBed::DoublePeak->new( $p1, $p2,\@membership );
 		$bed->{$dp->{'p1'}->{'c'} } ||= LoopBed::DPlist->new();
-		$bed->{$dp->{'p1'}->{'c'} } -> add ( $dp, $minRes );	
+		$bed->{$dp->{'p1'}->{'c'} } ->  add ( $dp, $minRes );	
 	}
 	foreach ( sort keys %$bed ) {
 		$bed->{$_} -> internal_merge()
@@ -330,7 +334,6 @@ use strict;
 use warnings;
 use List::Util qw[min max];
 
-use LoopBed::Peak;
 
 sub new {
 
@@ -482,7 +485,6 @@ All entries of the hash will be copied into the objects hash - be careful t use 
 use strict;
 use warnings;
 
-use LoopBed::DoublePeak;
 
 sub new {
 
