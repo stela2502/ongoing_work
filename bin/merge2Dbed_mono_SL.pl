@@ -21,6 +21,7 @@ use strict;
 use POSIX;
 use File::Basename;
 
+
 sub printCMD {
 	print STDERR "\n\tmerge2Dbed.pl [options] <2D BED file1> <2D BED file2> [2D BED file3]...\n";
 	print STDERR "\n\tOptions:\n";
@@ -165,7 +166,9 @@ foreach my $chr ( sort keys %$bed ) {
 }
 
 if ($prefix eq '') {
-	print "#merged=$c chr1\tstart1\tend1\tchr2\tstart2\tend2\n";
+	my @tmp;
+	
+	print "#merged=$c\tchr1\tstart1\tend1\t#chr2\tstart2\tend2\t".join(",",map{ basename( $_ ) } @intFiles )."\n";
 }
 print STDERR "\t$c total features after merging\n";
 print STDERR "\nFeatures";
@@ -198,7 +201,7 @@ foreach(sort keys %counts) {
 		$outFile =~ s/\//_/g;
 		open ($fh,">",$outFile);
 	}
-	print $fh "#merged=$counts{$_} chr1\tstart1\tend1\tchr2\tstart2\tend2" . join("\t", map {basename($_)} @intFiles) . "\n";
+	print $fh "#merged=$counts{$_}\tchr1\tstart1\tend1\t#chr2\tstart2\tend2" . join("\t", map {basename($_)} @intFiles) . "\n";
 	
 	foreach(@{$sets{$_}}) {
 		print $fh $_->print()."\n";

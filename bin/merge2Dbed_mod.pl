@@ -199,7 +199,7 @@ foreach(sort keys %counts) {
 		$outFile =~ s/\//_/g;
 		open ($fh,">",$outFile);
 	}
-	print $fh "#merged=$counts{$_} chr1\tstart1\tend1\tchr2\tstart2\tend2" . join("\t", map {basename($_)} @intFiles) . "\n";
+	print $fh "#merged=$counts{$_}\tchr1\tstart1\tend1\t#chr2\tstart2\tend2" . join("\t", map {basename($_)} @intFiles) . "\n";
 	
 	foreach(@{$sets{$_}}) {
 		print $fh $_->print()."\n";
