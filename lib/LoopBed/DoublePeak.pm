@@ -62,7 +62,7 @@ use LoopBed::Peak;
 
 sub new {
 
-	my ( $class, $p1, $p2, $membership ) = @_;
+	my ( $class, $p1, $p2, $membership, $addCols, $fname ) = @_;
 
 	my ($self);
 
@@ -77,9 +77,13 @@ sub new {
 		'p1' => $p1,
 		'p2' => $p2,
 		'membership' => $membership,
+		'addCols' => {},
 		'active' => 1,
 	};
 	
+	if ( defined $fname ) {
+		$self->{'addCols'} ->{$fname} = $addCols;
+	}
 	bless $self, $class if ( $class eq "LoopBed::DoublePeak" );
 
 	return $self;
@@ -98,9 +102,25 @@ sub add {
 	for (my $i = 0; $i <@{$self->{'membership'}}; $i++ ){
 		@{$self->{'membership'}}[$i] += @{$other->{'membership'}}[$i]
 	}
+	## now add the other information - simple sum is the only one I have implemented for now
+	foreach my $fname ( $self->unique( keys %{$self->{'addCols'}}, keys %{$other->{'addCols'}})) {
+		unless ( defined $self->{'addCols'}->{$fname} ){
+			$self->{'addCols'}->{$fname} = $other->{'addCols'}->{$fname};
+		}elsif ( defined $self->{'addCols'}->{$fname} and defined $other->{'addCols'}->{$fname} ) {
+			for (my $i = 0; $i <@{$self->{'addCols'}->{$fname}}; $i++ ){
+				@{$self->{'addCols'}->{$fname}}[$i] += @{$other->{'addCols'}->{$fname}}[$i]
+			}
+		}
+	}
 	$other->{'active'} = 0;
 	#print "new me:".  $self->pchr()."\n";
 	return $self;
+}
+
+sub unique{
+	my ( $self, @d) = @_;
+	my $t = { map { $_ => 1} @d };
+	return sort ( keys %$t );
 }
 
 sub comes_after{
@@ -137,12 +157,26 @@ sub pchr {
 
 sub asArray{
 	my ( $self ) = @_;
-	return ( $self->{'p1'}->asArray() , $self->{'p2'}->asArray(), @{$self->{'membership'}} );
+	my @r =( $self->{'p1'}->asArray() , $self->{'p2'}->asArray(), @{$self->{'membership'}} );
+	foreach  my $fname( sort keys %{$self->{'addCols'}} ){
+		push( @r,@{$self->{'addCols'}->{$fname}}) if ( ref($self->{'addCols'}->{$fname}) eq 'ARRAY'  );
+	}
+	return @r;
 }
 
 sub print {
 	my $self = shift;
-	return join("\t", $self->{'p1'}->print() , $self->{'p2'}->print(), join("\t", @{$self->{'membership'}} ) );
+	my $r = join("\t", 
+	 $self->{'p1'}->print(), 
+	 $self->{'p2'}->print(),
+	 join("\t", @{$self->{'membership'}} ),
+	 join("\t", map{ 
+	 	join("\t",@{$self->{'addCols'}->{$_}}) if ( ref($self->{'addCols'}->{$_}) eq "ARRAY" )  
+	 	} sort keys %{$self->{'addCols'}} ) 
+	);
+	$r =~s/\t\t/\t/g;
+	$r =~s/\t*$//;
+	return $r;
 }
 
 sub getMemStr {
