@@ -21,7 +21,6 @@ use strict;
 use POSIX;
 use File::Basename;
 
-
 sub printCMD {
 	print STDERR "\n\tmerge2Dbed.pl [options] <2D BED file1> <2D BED file2> [2D BED file3]...\n";
 	print STDERR "\n\tOptions:\n";
@@ -63,6 +62,28 @@ for (my $i=0;$i<@ARGV;$i++) {
 		push(@intFiles, $ARGV[$i]);
 	}
 }
+
+my $cmd = basename($0);
+if ( $minRes ) {
+	$cmd .= " -res $minRes"
+}
+if ( $prefix =~ m/\w/ ) {
+	$cmd .= " -prefix $prefix"
+}
+if ( $tadFlag == 0 ){
+	$cmd .= " -loop"
+}
+if ( $commonOnly ){
+	warn "-commonOnly is not implemented here - please perform this step in the downstream analysis!"
+}
+$cmd .= " '". join("' '",  @intFiles)."'";
+
+my $logF = join(".", basename($0), $$, 'log');
+open ( LOG,">", $logF ) or die "I could not create the log file '$logF'\n$!";
+print LOG $cmd."\n";
+close ( LOG);
+warn "created cmd log file '$logF'\n$prefix\n";
+
 
 my $numFiles = scalar(@intFiles);
 if ($tadFlag == -1) {
@@ -119,13 +140,15 @@ my $index = 0;
 
 
 my %toCombine =();
-$extraHeader = '';
+$extraHeader = {};
 
 my @perFile;
 for (my $i=0;$i<@intFiles;$i++) {
 	warn "reading file $intFiles[$i]\n";
 	push ( @perFile, read2Dbed($intFiles[$i],$i,$numFiles) );
 }
+warn "Files read\n";
+
 my $chr = {};
 foreach my $f ( @perFile ) {
 	map { $chr->{$_} = 1 } keys %$f;
@@ -135,8 +158,12 @@ my $bed = {};
 foreach my $c ( sort keys %$chr ) {		
 	#warn "processing chr $c\n";
 	$bed->{$c} = LoopBed::DPlist->new();
-	$bed->{$c}->{'data'} = [ map{ @{$_->{$c}->{'data'}} } @perFile ];
+	for ( my $i = 0 ; $i < @perFile;$i++) {
+		push( @{$bed->{$c}->{'data'}}, @{$perFile[$i]->{$c}->{'data'}} ) if ( defined $perFile[$i]->{$c})
+	}
+	#$bed->{$c}->{'data'} = [ map{ @{$_->{$c}->{'data'}} if ( $_->{$c} ) } @perFile ];
 	#warn "merging #1 chr $c\n";
+	$bed->{$c}->isValid($c." with a total of ".scalar(@{$bed->{$c}->{'data'}})." entries");
 	$bed->{$c}->internal_merge($minRes);
 }
 
@@ -166,9 +193,7 @@ foreach my $chr ( sort keys %$bed ) {
 }
 
 if ($prefix eq '') {
-	my @tmp;
-	
-	print "#merged=$c\tchr1\tstart1\tend1\t#chr2\tstart2\tend2\t".join(",",map{ basename( $_ ) } @intFiles )."\n";
+	print  "#merged=$c\tchr1\tstart1\tend1\t#chr2\tstart2\tend2\t" . join("\t", map {basename($_)." [n]"} @intFiles) ."\t", join("\t", map { $extraHeader->{$_} } sort keys %$extraHeader ),"\n";
 }
 print STDERR "\t$c total features after merging\n";
 print STDERR "\nFeatures";
@@ -199,9 +224,9 @@ foreach(sort keys %counts) {
 	if ($prefix ne '') {
 		my $outFile = $prefix . $file;
 		$outFile =~ s/\//_/g;
-		open ($fh,">",$outFile);
+		open ($fh,">",$outFile);	
+		print $fh "#merged=$counts{$_}\tchr1\tstart1\tend1\t#chr2\tstart2\tend2\t" . join("\t", map {basename($_)." [n]"} @intFiles) ."\t", join("\t", map { $extraHeader->{$_} } sort keys %$extraHeader ),"\n";
 	}
-	print $fh "#merged=$counts{$_}\tchr1\tstart1\tend1\t#chr2\tstart2\tend2" . join("\t", map {basename($_)} @intFiles) . "\n";
 	
 	foreach(@{$sets{$_}}) {
 		print $fh $_->print()."\n";
@@ -216,10 +241,10 @@ exit;
 
 sub check2Dbed {
 	my ($file) = @_;
-	open IN, $file or die "Could not open file: $file\n";
+	my $in = openFile( $file );
 	my $same=0;
 	my $total=0;
-	while (<IN>) {
+	while (<$in>) {
 		chomp;
 		s/\r//g;
 		my @line = split /\t/;
@@ -230,60 +255,74 @@ sub check2Dbed {
 		}
 		$total++;
 	}
-	close IN;
+	close $in;
 	return -1 if ($total < 1);
 	return 1 if ($same/$total > 0.5);
 	return 0;
 }
 
+
+sub openFile {
+	my $file = shift;
+	my $in ;
+	if ( $file =~ m/gz$/ ) {
+		open ( $in, "zcat $file |") or die "open the zcat pipe for file '$file'\n$!";
+	}else {
+		open ($in, "<", $file ) or Carp::confess( "Could not open file: '$file'\n$!" );
+	}
+	return $in
+}
+
 sub read2Dbed {
 	my ($file,$index,$numFiles) = @_;
 	my $bed = {};
-	$extraHeader = '';
 	my $c = 0;
-	open IN, $file or die "Could not open file: $file\n";
+	
 	my ($add, $storedDP, $last);
 	
-	while (<IN>) {
+	my $fname =  basename( $file );
+	$extraHeader->{$fname} = undef;
+	my $in = openFile( $file );
+	
+	LINE: while (<$in>) {
 		$c++;
 		chomp;
 		s/\r//g;
 		my @line = split /\t/;
-		if ($c == 1) {
-			for (my $i=6;$i<@line;$i++){ 
-				if ($line[0] =~ /^#/) {
-					$extraHeader .= "\t" . $line[$i];
-				} else {
-					$extraHeader .= "\tinfo";
-				}
-			}
-			unless ( $line[0] =~ m/^[Cc]hr/ ) {
-				next;
-			}
+		if ( $line[0] =~ /^#/ and scalar(@line) > 6 or ! ( $line[1] =~m/^\d+$/ )  ){
+			$extraHeader->{$fname} = join("\t",  map {$fname.": ".$line[$_]} 6..@line-1 );
+			next LINE;
+		}elsif ( scalar(@line) > 6 and  ! (defined $extraHeader->{$fname} ) ) {
+			$extraHeader->{$fname} = join("\t",  map {$fname.": info ". ($_ - 5)} 6..@line-1 );
 		}
 		my $p1 = LoopBed::Peak ->new( @line[0..2] );
 		my $p2 = LoopBed::Peak ->new( @line[3..5] );
 		my @membership = map{ 0 } 0..($numFiles-1);
 		$membership[$index] = 1;
-		my $dp = LoopBed::DoublePeak->new( $p1, $p2,\@membership );
+		my $dp;
+		if ( scalar(@line) > 6 ){
+			$dp = LoopBed::DoublePeak->new( $p1, $p2,\@membership, [@line[6..scalar(@line)-1]], $fname );
+		}else {
+			$dp = LoopBed::DoublePeak->new( $p1, $p2,\@membership, [], $fname );
+		}
 		$bed->{$dp->{'p1'}->{'c'} } ||= LoopBed::DPlist->new();
 		$bed->{$dp->{'p1'}->{'c'} } ->  add ( $dp, $minRes );	
 	}
 	foreach ( sort keys %$bed ) {
 		$bed->{$_} -> internal_merge()
 	}
-	close IN;
+	close $in;
 
 	return $bed;
 }
+
+1;
 
 package LoopBed::DoublePeak;
 
 #use FindBin;
 #use lib "$FindBin::Bin/../lib/";
 #created by bib_create.pl from  commit 
-use strict;
-use warnings;
 
 =head1 LICENCE
 
@@ -337,10 +376,9 @@ use strict;
 use warnings;
 use List::Util qw[min max];
 
-
 sub new {
 
-	my ( $class, $p1, $p2, $membership ) = @_;
+	my ( $class, $p1, $p2, $membership, $addCols, $fname ) = @_;
 
 	my ($self);
 
@@ -355,13 +393,22 @@ sub new {
 		'p1' => $p1,
 		'p2' => $p2,
 		'membership' => $membership,
+		'addCols' => {},
 		'active' => 1,
 	};
 	
+	if ( defined $fname ) {
+		$self->{'addCols'} ->{$fname} = $addCols;
+	}
 	bless $self, $class if ( $class eq "LoopBed::DoublePeak" );
 
 	return $self;
 
+}
+
+sub isValid {
+	my $self = shift;
+	return ($self->{'p1'}->isValid() and $self->{'p2'}->isValid() ) 
 }
 
 sub add {
@@ -376,9 +423,25 @@ sub add {
 	for (my $i = 0; $i <@{$self->{'membership'}}; $i++ ){
 		@{$self->{'membership'}}[$i] += @{$other->{'membership'}}[$i]
 	}
+	## now add the other information - simple sum is the only one I have implemented for now
+	foreach my $fname ( $self->unique( keys %{$self->{'addCols'}}, keys %{$other->{'addCols'}})) {
+		unless ( defined $self->{'addCols'}->{$fname} ){
+			$self->{'addCols'}->{$fname} = $other->{'addCols'}->{$fname};
+		}elsif ( defined $self->{'addCols'}->{$fname} and defined $other->{'addCols'}->{$fname} ) {
+			for (my $i = 0; $i <@{$self->{'addCols'}->{$fname}}; $i++ ){
+				@{$self->{'addCols'}->{$fname}}[$i] += @{$other->{'addCols'}->{$fname}}[$i]
+			}
+		}
+	}
 	$other->{'active'} = 0;
 	#print "new me:".  $self->pchr()."\n";
 	return $self;
+}
+
+sub unique{
+	my ( $self, @d) = @_;
+	my $t = { map { $_ => 1} @d };
+	return sort ( keys %$t );
 }
 
 sub comes_after{
@@ -415,12 +478,26 @@ sub pchr {
 
 sub asArray{
 	my ( $self ) = @_;
-	return ( $self->{'p1'}->asArray() , $self->{'p2'}->asArray(), @{$self->{'membership'}} );
+	my @r =( $self->{'p1'}->asArray() , $self->{'p2'}->asArray(), @{$self->{'membership'}} );
+	foreach  my $fname( sort keys %{$self->{'addCols'}} ){
+		push( @r,@{$self->{'addCols'}->{$fname}}) if ( ref($self->{'addCols'}->{$fname}) eq 'ARRAY'  );
+	}
+	return @r;
 }
 
 sub print {
 	my $self = shift;
-	return join("\t", $self->{'p1'}->print() , $self->{'p2'}->print(), join("\t", @{$self->{'membership'}} ) );
+	my $r = join("\t", 
+	 $self->{'p1'}->print(), 
+	 $self->{'p2'}->print(),
+	 join("\t", @{$self->{'membership'}} ),
+	 join("\t", map{ 
+	 	join("\t",@{$self->{'addCols'}->{$_}}) if ( ref($self->{'addCols'}->{$_}) eq "ARRAY" )  
+	 	} sort keys %{$self->{'addCols'}} ) 
+	);
+	$r =~s/\t\t/\t/g;
+	$r =~s/\t*$//;
+	return $r;
 }
 
 sub getMemStr {
@@ -430,13 +507,12 @@ sub getMemStr {
 
 
 1;
+
 package LoopBed::DPlist;
 
 #use FindBin;
 #use lib "$FindBin::Bin/../lib/";
 #created by bib_create.pl from  commit 
-use strict;
-use warnings;
 
 =head1 LICENCE
 
@@ -487,7 +563,6 @@ All entries of the hash will be copied into the objects hash - be careful t use 
 
 use strict;
 use warnings;
-
 
 sub new {
 
@@ -544,6 +619,21 @@ sub add_check_overlap{
 	Carp::confess ( "This should not be reached! ".$dp->pchr()."\n" );
 }
 
+sub isValid{
+	my $self = shift;
+	my $pefix = shift;
+	$pefix ||= '';
+	my $OK =1;
+	for ( my $i =0; $i < @{$self->{'data'}}; $i ++) {
+		unless ( defined @{$self->{'data'}}[$i] ){
+			warn "$pefix: Problem in line ".($i+1).": DoublePeak not defined!\n";
+		}elsif (! @{$self->{'data'}}[$i]->isValid() ){
+			warn "$pefix: Problem in line ".($i+1).": ". @{$self->{'data'}}[$i]->print()."\n";
+			$OK = 0;
+		}
+	}
+	return $OK;
+}
 
 sub print {
 	my ( $self ) = @_;
@@ -564,7 +654,7 @@ sub asArrayOfArrays {
 sub sortByStart {
 	my ( $self ) = @_;
 	
-	my $byThat = sub{ 
+	my $byThat = sub{
 		if ( $a->{'p1'}->{'s'} == $b->{'p1'}->{'s'} ) {
 			$a->{'p2'}->{'s'} <=> $b->{'p2'}->{'s'}	
 		} 
@@ -626,8 +716,6 @@ package LoopBed::Peak;
 #use FindBin;
 #use lib "$FindBin::Bin/../lib/";
 #created by bib_create.pl from  commit 
-use strict;
-use warnings;
 
 
 =head1 LICENCE
@@ -709,6 +797,9 @@ sub new {
 
 	bless $self, $class if ( $class eq "LoopBed::Peak" );
 
+	unless ( $self->isValid() ){
+		Carp::confess( "I am not a valid peak:\n".$self->print() );
+	}
 	return $self;
 
 }
@@ -745,6 +836,11 @@ sub comes_before{
 		warn ref($self)."::comes_after(".$self->pchr().", ". $peak->pchr()." ): The peaks are not on the same chromosome";
 	}
 	return -1;
+}
+
+sub isValid {
+	my $self = shift;
+	return ($self->{'s'} =~ m/^\d+$/ and  $self->{'e'} =~ m/^\d+$/);
 }
 
 sub pchr{

@@ -86,6 +86,9 @@ sub new {
 
 	bless $self, $class if ( $class eq "LoopBed::Peak" );
 
+	unless ( $self->isValid() ){
+		Carp::confess( "I am not a valid peak:\n".$self->print() );
+	}
 	return $self;
 
 }
@@ -122,6 +125,11 @@ sub comes_before{
 		warn ref($self)."::comes_after(".$self->pchr().", ". $peak->pchr()." ): The peaks are not on the same chromosome";
 	}
 	return -1;
+}
+
+sub isValid {
+	my $self = shift;
+	return ($self->{'s'} =~ m/^\d+$/ and  $self->{'e'} =~ m/^\d+$/);
 }
 
 sub pchr{

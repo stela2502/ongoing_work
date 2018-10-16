@@ -11,9 +11,9 @@ my $plugin_path = "$FindBin::Bin";
 
 my ( $value, @values, $exp, $path, $name, $git_server, $git_user, $debug );
 
-my $exec = $plugin_path . "/../bin/merge2Dbed_mod.pl";
+my $exec = $plugin_path . "/../bin/merge2Dbed_mono_SL.pl";
 ok( -f $exec, 'the script has been found' );
-my $outpath = "$plugin_path/data/output/merge2Dbed_mod";
+my $outpath = "$plugin_path/data/output/merge2Dbed_mono_SL";
 @values = ( 'error.out', 'std.out' );
 
 if ( -d $outpath ) {
@@ -22,6 +22,8 @@ if ( -d $outpath ) {
 else {
 	File::Path::make_path($outpath);
 }
+
+unlink("$outpath/*.log" );
 
 $path = "$plugin_path/data/output/merge2Dbed_mod";
 
@@ -37,8 +39,7 @@ my $cmd = "perl -I $plugin_path/../lib  $exec "
 
   #. " -git_server " . $git_server
   #. " -git_user " . $git_user
-  . "$debug" . " 2>$outpath/error.out 1>$outpath/std.out"
-;
+  . "$debug" . " 2>$outpath/error.out 1>$outpath/std.out";
 my $start = time;
 print( $cmd. "\n" );
 system($cmd );

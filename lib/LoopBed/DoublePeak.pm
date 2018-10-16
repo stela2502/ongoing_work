@@ -90,6 +90,11 @@ sub new {
 
 }
 
+sub isValid {
+	my $self = shift;
+	return ($self->{'p1'}->isValid() and $self->{'p2'}->isValid() ) 
+}
+
 sub add {
 	my ( $self, $other ) = @_;
 	#print "old me:". $self->pchr()."\n";

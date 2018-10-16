@@ -113,6 +113,21 @@ sub add_check_overlap{
 	Carp::confess ( "This should not be reached! ".$dp->pchr()."\n" );
 }
 
+sub isValid{
+	my $self = shift;
+	my $pefix = shift;
+	$pefix ||= '';
+	my $OK =1;
+	for ( my $i =0; $i < @{$self->{'data'}}; $i ++) {
+		unless ( defined @{$self->{'data'}}[$i] ){
+			warn "$pefix: Problem in line ".($i+1).": DoublePeak not defined!\n";
+		}elsif (! @{$self->{'data'}}[$i]->isValid() ){
+			warn "$pefix: Problem in line ".($i+1).": ". @{$self->{'data'}}[$i]->print()."\n";
+			$OK = 0;
+		}
+	}
+	return $OK;
+}
 
 sub print {
 	my ( $self ) = @_;
@@ -133,7 +148,7 @@ sub asArrayOfArrays {
 sub sortByStart {
 	my ( $self ) = @_;
 	
-	my $byThat = sub{ 
+	my $byThat = sub{
 		if ( $a->{'p1'}->{'s'} == $b->{'p1'}->{'s'} ) {
 			$a->{'p2'}->{'s'} <=> $b->{'p2'}->{'s'}	
 		} 

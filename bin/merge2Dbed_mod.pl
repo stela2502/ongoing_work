@@ -20,7 +20,8 @@ use strict;
 
 use POSIX;
 use File::Basename;
-use  LoopBed::DPlist;
+use LoopBed::DPlist;
+use stefans_libs::root;
 
 sub printCMD {
 	print STDERR "\n\tmerge2Dbed.pl [options] <2D BED file1> <2D BED file2> [2D BED file3]...\n";
@@ -63,6 +64,28 @@ for (my $i=0;$i<@ARGV;$i++) {
 		push(@intFiles, $ARGV[$i]);
 	}
 }
+
+my $cmd = basename($0);
+if ( $minRes ) {
+	$cmd .= " -res $minRes"
+}
+if ( $prefix =~ m/\w/ ) {
+	$cmd .= " -prefix $prefix"
+}
+if ( $tadFlag == 0 ){
+	$cmd .= " -loop"
+}
+if ( $commonOnly ){
+	warn "-commonOnly is not implemented here - please perform this step in the downstream analysis!"
+}
+$cmd .= " '". join("' '",  @intFiles)."'";
+
+my $logF = join(".", basename($0), $$, 'log');
+open ( LOG,">", $logF ) or die "I could not create the log file '$logF'\n$!";
+print LOG $cmd."\n";
+close ( LOG);
+warn "created cmd log file '$logF'\n$prefix\n";
+
 
 my $numFiles = scalar(@intFiles);
 if ($tadFlag == -1) {
@@ -126,6 +149,8 @@ for (my $i=0;$i<@intFiles;$i++) {
 	warn "reading file $intFiles[$i]\n";
 	push ( @perFile, read2Dbed($intFiles[$i],$i,$numFiles) );
 }
+warn "Files read\n";
+
 my $chr = {};
 foreach my $f ( @perFile ) {
 	map { $chr->{$_} = 1 } keys %$f;
@@ -135,21 +160,14 @@ my $bed = {};
 foreach my $c ( sort keys %$chr ) {		
 	#warn "processing chr $c\n";
 	$bed->{$c} = LoopBed::DPlist->new();
-	$bed->{$c}->{'data'} = [ map{ @{$_->{$c}->{'data'}} if ( $_->{$c} ) } @perFile ];
+	for ( my $i = 0 ; $i < @perFile;$i++) {
+		push( @{$bed->{$c}->{'data'}}, @{$perFile[$i]->{$c}->{'data'}} ) if ( defined $perFile[$i]->{$c})
+	}
+	#$bed->{$c}->{'data'} = [ map{ @{$_->{$c}->{'data'}} if ( $_->{$c} ) } @perFile ];
 	#warn "merging #1 chr $c\n";
+	$bed->{$c}->isValid($c." with a total of ".scalar(@{$bed->{$c}->{'data'}})." entries");
 	$bed->{$c}->internal_merge($minRes);
 }
-
-
-open (OUT, ">debug.bed" ) or die $!;
-my $tmp;
-foreach my $c ( sort keys %$chr ) {		
-	print OUT join( "\n", map{ $_->print() } @{$bed->{$c}->{'data'}} )."\n";
-}
-close ( OUT );
-
-#print "The \%bed = ".root->print_perl_var_def( $bed ).";\n";
-
 
 my %counts = ();
 my $c = 0;
@@ -164,6 +182,14 @@ foreach my $chr ( sort keys %$bed ) {
 		$c++;
 	}
 }
+
+open (OUT, ">debug.bed" ) or die $!;
+my $tmp;	
+print OUT "#merged=$c\tchr1\tstart1\tend1\t#chr2\tstart2\tend2\t" . join("\t", map {basename($_)." [n]"} @intFiles) ."\t", join("\t", map { $extraHeader->{$_} } sort keys %$extraHeader ),"\n";
+foreach my $c ( sort keys %$chr ) {		
+	print OUT join( "\n", map{ $_->print() } @{$bed->{$c}->{'data'}} )."\n";
+}
+close ( OUT );
 
 if ($prefix eq '') {
 	print  "#merged=$c\tchr1\tstart1\tend1\t#chr2\tstart2\tend2\t" . join("\t", map {basename($_)." [n]"} @intFiles) ."\t", join("\t", map { $extraHeader->{$_} } sort keys %$extraHeader ),"\n";
@@ -241,7 +267,7 @@ sub openFile {
 	if ( $file =~ m/gz$/ ) {
 		open ( $in, "zcat $file |") or die "open the zcat pipe for file '$file'\n$!";
 	}else {
-		open $in, $file or die "Could not open file: $file\n$!";
+		open ($in, "<", $file ) or Carp::confess( "Could not open file: '$file'\n$!" );
 	}
 	return $in
 }
@@ -255,17 +281,17 @@ sub read2Dbed {
 	
 	my $fname =  basename( $file );
 	$extraHeader->{$fname} = undef;
-	my $in = openFile( $fname );
+	my $in = openFile( $file );
 	
-	while (<$in>) {
+	LINE: while (<$in>) {
 		$c++;
 		chomp;
 		s/\r//g;
 		my @line = split /\t/;
-		if ( $line[0] =~ /^#/ and scalar(@line) > 6 ){
+		if ( $line[0] =~ /^#/ and scalar(@line) > 6 or ! ( $line[1] =~m/^\d+$/ )  ){
 			$extraHeader->{$fname} = join("\t",  map {$fname.": ".$line[$_]} 6..@line-1 );
-			next;
-		}elsif ( scalar(@line) > 6 ) {
+			next LINE;
+		}elsif ( scalar(@line) > 6 and  ! (defined $extraHeader->{$fname} ) ) {
 			$extraHeader->{$fname} = join("\t",  map {$fname.": info ". ($_ - 5)} 6..@line-1 );
 		}
 		my $p1 = LoopBed::Peak ->new( @line[0..2] );

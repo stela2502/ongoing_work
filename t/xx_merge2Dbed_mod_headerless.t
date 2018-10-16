@@ -33,7 +33,7 @@ if (0) {
 my $cmd = "perl -I $plugin_path/../lib  $exec "
 
   #   . " -res 0"
-  . " $plugin_path/data/EBF1.tiny.bed" . " $plugin_path/data/IKZF1.tiny.bed"
+  . " $plugin_path/data/EBF1.tiny.headerless.bed" . " $plugin_path/data/IKZF1.tiny.headerless.bed"
 
   #. " -git_server " . $git_server
   #. " -git_user " . $git_user
@@ -48,12 +48,12 @@ print "Execution time: $duration s\n";
 my $err = slurpFile("$outpath/error.out");
 
 $exp = [
-	[ 'Features', "$plugin_path/data/EBF1.tiny.bed", "$plugin_path/data/IKZF1.tiny.bed", 'Name' ],
-	[ '6', '',  'X', "$plugin_path/data/IKZF1.tiny.bed" ],
-	[ '6', 'X', '',  "$plugin_path/data/EBF1.tiny.bed" ],
+	[ 'Features', "$plugin_path/data/EBF1.tiny.headerless.bed", "$plugin_path/data/IKZF1.tiny.headerless.bed", 'Name' ],
+	[ '6', '',  'X', "$plugin_path/data/IKZF1.tiny.headerless.bed" ],
+	[ '6', 'X', '',  "$plugin_path/data/EBF1.tiny.headerless.bed" ],
 	[
 		'3', 'X', 'X',
-		"$plugin_path/data/EBF1.tiny.bed|$plugin_path/data/IKZF1.tiny.bed"
+		"$plugin_path/data/EBF1.tiny.headerless.bed|$plugin_path/data/IKZF1.tiny.headerless.bed"
 	]
 ];
 
@@ -67,10 +67,10 @@ $exp = [
 		'#merged=15',             'chr1',
 		'start1',                'end1',
 		'#chr2',                 'start2',
-		'end2',                  'EBF1.tiny.bed [n]',
-		'IKZF1.tiny.bed [n]',    'EBF1.tiny.bed: 3\' EBF1',
-		'EBF1.tiny.bed: 5\' EBF1', 'IKZF1.tiny.bed: 3\' IKZF',
-		'IKZF1.tiny.bed: 5\' IKZF'
+		'end2',                  'EBF1.tiny.headerless.bed [n]',
+		'IKZF1.tiny.headerless.bed [n]',    'EBF1.tiny.headerless.bed: info 1',
+		'EBF1.tiny.headerless.bed: info 2', 'IKZF1.tiny.headerless.bed: info 1',
+		'IKZF1.tiny.headerless.bed: info 2'
 	],
 	[
 		'chr1', '755000', '760000', 'chr1', '778420', '778642',
