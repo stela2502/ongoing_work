@@ -282,7 +282,7 @@ sub read2Dbed {
 	my $fname =  basename( $file );
 	$extraHeader->{$fname} = undef;
 	my $in = openFile( $file );
-	
+	my $extra_length = 0;
 	LINE: while (<$in>) {
 		$c++;
 		chomp;
@@ -290,20 +290,23 @@ sub read2Dbed {
 		my @line = split /\t/;
 		if ( $line[0] =~ /^#/ and scalar(@line) > 6 or ! ( $line[1] =~m/^\d+$/ )  ){
 			$extraHeader->{$fname} = join("\t",  map {$fname.": ".$line[$_]} 6..@line-1 );
+			$extra_length = scalar( @line )-7 ;
+			$extra_length = 0 if $extra_length < 0;
 			next LINE;
 		}elsif ( scalar(@line) > 6 and  ! (defined $extraHeader->{$fname} ) ) {
 			$extraHeader->{$fname} = join("\t",  map {$fname.": info ". ($_ - 5)} 6..@line-1 );
+			$extra_length = scalar( @line )-7 ;
+			$extra_length = 0 if $extra_length < 0;
 		}
 		my $p1 = LoopBed::Peak ->new( @line[0..2] );
 		my $p2 = LoopBed::Peak ->new( @line[3..5] );
 		my @membership = map{ 0 } 0..($numFiles-1);
 		$membership[$index] = 1;
 		my $dp;
-		if ( scalar(@line) > 6 ){
-			$dp = LoopBed::DoublePeak->new( $p1, $p2,\@membership, [@line[6..scalar(@line)-1]], $fname );
-		}else {
-			$dp = LoopBed::DoublePeak->new( $p1, $p2,\@membership, [], $fname );
-		}
+		
+		## always put 'data' in! 
+		$dp = LoopBed::DoublePeak->new( $p1, $p2,\@membership, [@line[6..(6+$extra_length)]], $fname );
+		
 		$bed->{$dp->{'p1'}->{'c'} } ||= LoopBed::DPlist->new();
 		$bed->{$dp->{'p1'}->{'c'} } ->  add ( $dp, $minRes );	
 	}

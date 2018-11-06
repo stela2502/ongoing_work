@@ -176,8 +176,10 @@ sub print {
 	 $self->{'p2'}->print(),
 	 join("\t", @{$self->{'membership'}} ),
 	 join("\t", map{ 
-	 	join("\t",@{$self->{'addCols'}->{$_}}) if ( ref($self->{'addCols'}->{$_}) eq "ARRAY" )  
-	 	} sort keys %{$self->{'addCols'}} ) 
+	 	if ( ref($self->{'addCols'}->{$_}) eq "ARRAY" ){
+	 		join("\t", map { $_ || 0 }  @{$self->{'addCols'}->{$_}})
+	 	}
+	 } sort keys %{$self->{'addCols'}} ) 
 	);
 	$r =~s/\t\t/\t/g;
 	$r =~s/\t*$//;
